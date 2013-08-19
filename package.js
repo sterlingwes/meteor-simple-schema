@@ -12,8 +12,6 @@ Package.on_use(function(api) {
 });
 
 Package.on_test(function(api) {
-  api.use('simple-schema', ['client', 'server']);
-  api.use('test-helpers', ['client', 'server']);
-  api.use('tinytest', ['client', 'server']);
-  api.add_files("simple-schema-tests.js", ['client', 'server']);
+    api.use(["meteor-simple-schema", "tinytest", "test-helpers"]);
+    api.add_files("simple-schema-tests.js", ['client', 'server']);
 });
