@@ -8,6 +8,6 @@ Package.on_use(function(api) {
 });
 
 Package.on_test(function(api) {
-    api.use(["meteor-simple-schema", "tinytest", "test-helpers"]);
+    api.use(["simple-schema", "tinytest", "test-helpers"]);
     api.add_files("simple-schema-tests.js", ['client', 'server']);
 });

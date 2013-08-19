@@ -7,9 +7,18 @@ SchemaRegEx = {
     Url: /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$/i
 };
 
+function toTitleCase(str)
+{
+    return str.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+}
+
 //@export SimpleSchema
 SimpleSchema = function(schema) {
     var self = this;
+	//enforce labels as keys if not present
+	_.each(schema, function(def,key) {
+		if(!def.label)	def.label = toTitleCase(key);
+	});
     self._schema = schema || {};
     self._schemaKeys = _.keys(schema);
     self._invalidKeys = [];
@@ -49,7 +58,7 @@ SimpleSchema.prototype.validate = function(doc) {
     //all keys must pass validation check
     _.each(self._schema, function(def, keyName) {
         var keyValue;
-        var keyLabel = def.label || keyName;
+        var keyLabel = def.label;
 
         //first check unsetting
         if (isUnsetting) {
@@ -98,11 +107,16 @@ SimpleSchema.prototype.validate = function(doc) {
 //returns doc with all properties that are not in the schema removed
 SimpleSchema.prototype.filter = function(doc) {
     //TODO make sure this works with descendent objects
-    var newDoc, self = this;
+    var newDoc, self = this, setKeys;
     if ("$set" in doc) {
         //for $set, filter only that obj
-        newDoc = doc;
-        newDoc.$set = _.pick(doc.$set, self._schemaKeys);
+		newDoc = doc;
+		setKeys = _.keys(doc.$set);
+		if(!_.find(setKeys, function(key) {
+			return key.indexOf('.');
+		})) {
+			newDoc.$set = _.pick(doc.$set, self._schemaKeys);
+		}
     } else {
         newDoc = _.pick(collapseObj(doc, self._schemaKeys), self._schemaKeys);
         newDoc = expandObj(newDoc);
@@ -119,6 +133,8 @@ SimpleSchema.prototype.autoTypeConvert = function(doc) {
                 for (var i = 0, ln = doc[keyName].length; i < ln; i++) {
                     doc[keyName][i] = typeconvert(doc[keyName][i], def.type[0]); //typeconvert
                 }
+			} else if(_.isArray(def.type) && !_.isArray(doc[keyName]) && def.force) {
+				doc[keyName] = [typeconvert(doc[keyName], def.type[0])];
             } else {
                 doc[keyName] = typeconvert(doc[keyName], def.type); //typeconvert
             }
@@ -127,6 +143,8 @@ SimpleSchema.prototype.autoTypeConvert = function(doc) {
                 for (var i = 0, ln = doc.$set[keyName].length; i < ln; i++) {
                     doc.$set[keyName][i] = typeconvert(doc.$set[keyName][i], def.type[0]); //typeconvert
                 }
+			} else if(_.isArray(def.type) && !_.isArray(doc.$set[keyName]) && def.force) {
+				doc.$set[keyName] = [typeconvert(doc.$set[keyName], def.type[0])];
             } else {
                 doc.$set[keyName] = typeconvert(doc.$set[keyName], def.type); //typeconvert
             }
