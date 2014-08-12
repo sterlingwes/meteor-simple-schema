@@ -49,9 +49,10 @@ SimpleSchema.prototype.validate = function(doc) {
     var self = this, invalidKeys = [];
     var isSetting = "$set" in doc;
     var isUnsetting = "$unset" in doc;
+    var isAddingToSet = "$addToSet" in doc;
 
     //if inserting, we need to flatten the object to one level, using mongo $set dot notation
-    if (!isSetting && !isUnsetting) {
+    if (!isSetting && !isUnsetting && !isAddingToSet) {
         doc = collapseObj(doc, self._schemaKeys);
     }
 
@@ -68,6 +69,10 @@ SimpleSchema.prototype.validate = function(doc) {
             if (!isSetting) {
                 return; //it's valid, and no need to perform further checks on this key
             }
+        }
+        
+        if(isAddingToSet) {
+            return; // should probably still validate
         }
 
         //next check setting or inserting
@@ -168,14 +173,28 @@ SimpleSchema.prototype.filter = function(doc) {
     var newDoc, self = this, setKeys;
     if ("$set" in doc) {
         //for $set, filter only that obj
-		newDoc = doc;
-		setKeys = _.keys(doc.$set);
-		if(!_.find(setKeys, function(key) {
-			return key.indexOf('.');
-		})) {
-			newDoc.$set = _.pick(doc.$set, self._schemaKeys);
-		}
-    } else {
+		    newDoc = doc;
+		    setKeys = _.keys(doc.$set);
+		    
+    		if(!_.find(setKeys, function(key) {
+    			return key.indexOf('.');
+    		})) {
+    			newDoc.$set = _.pick(doc.$set, self._schemaKeys);
+    		}
+    }
+    
+    if ("$addToSet" in doc) {
+        newDoc = doc;
+        setKeys = _.keys(doc.$addToSet);
+        
+        if(!_.find(setKeys, function(key) {
+          return key.indexOf('.');
+        })) {
+          newDoc.$addToSet = _.pick(doc.$addToSet, self._schemaKeys);
+        }
+    }
+    
+    if(!("$set" in doc) && !("$addToSet" in doc)) {
         newDoc = _.pick(collapseObj(doc, self._schemaKeys), self._schemaKeys);
         newDoc = expandObj(newDoc);
     }
